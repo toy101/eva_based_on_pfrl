@@ -248,8 +248,7 @@ def main():
         )
 
     # Use the Nature paper's hyperparameters
-    opt = torch.optim.Adam(lr=args.lr)
-    # opt.setup()
+    opt = torch.optim.Adam(q_func.parameters(), lr=args.lr)
 
     # Select a replay buffer to use
     if args.prioritized:
