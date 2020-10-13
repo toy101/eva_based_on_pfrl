@@ -35,6 +35,7 @@ from pfrl.utils.recurrent import one_step_forward
 from pfrl.utils.recurrent import pack_and_forward
 from pfrl.utils.recurrent import recurrent_state_as_numpy
 
+from eva_replay_buffer import EVAReplayBuffer
 
 def _mean_or_nan(xs: Sequence[float]) -> float:
     """Return its mean a non-empty sequence, numpy.nan for a empty one."""
@@ -180,7 +181,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         self,
         q_function: torch.nn.Module,
         optimizer: torch.optim.Optimizer,  # type: ignore  # somehow mypy complains
-        replay_buffer: pfrl.replay_buffer.AbstractReplayBuffer,
+        replay_buffer: EVAReplayBuffer,
         gamma: float,
         explorer: Explorer,
         gpu: Optional[int] = None,
@@ -464,9 +465,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                 batch_accumulator=self.batch_accumulator,
             )
 
-    def _evaluate_model_and_update_recurrent_states(
-        self, batch_obs: Sequence[Any]
-    ) -> ActionValue:
+    def _evaluate_model_and_update_recurrent_states(self, batch_obs: Sequence[Any]):
         batch_xs = self.batch_states(batch_obs, self.device, self.phi)
         if self.recurrent:
             if self.training:
@@ -523,7 +522,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                     "next_state": batch_obs[i],
                     "next_action": None,
                     "is_state_terminal": batch_done[i],
-                    "features": self.batch_h,
+                    "features": self.batch_h[i],
                 }
                 if self.recurrent:
                     transition["recurrent_state"] = recurrent_state_as_numpy(

@@ -19,13 +19,13 @@ class EVANetwork(nn.Module):
 
     def forward(self, x, eva_flag=False):
         h = self.cnn(x)
-        q = self.output(F.relu(h))
+        q = self.output(h)
         param_q = DiscreteActionValue(q)
 
         # TODO:Value buffer
         non_param_q = None
         if eva_flag:
-            return self.ration_lambda*param_q + (1-self.ration_lambda)*non_param_q
+            return self.ration_lambda*param_q + (1-self.ration_lambda)*non_param_q, h
         else:
-            return param_q
+            return param_q, h
 
