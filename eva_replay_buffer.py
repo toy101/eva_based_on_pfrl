@@ -1,8 +1,11 @@
 import collections
 import pickle
 
+import torch
 from pfrl.collections.random_access_queue import RandomAccessQueue
 from pfrl import replay_buffer
+
+from lsm_knn_buffer import LSMKNNBuffer as lkb
 
 
 class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
@@ -19,14 +22,17 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
             (for N-step updates)
     """
 
-    def __init__(self, capacity=None, num_steps=1):
+    def __init__(self, capacity, n_dim, n_neighbors, num_steps=1):
         self.capacity = capacity
         assert num_steps > 0
         self.num_steps = num_steps
         self.memory = RandomAccessQueue(maxlen=capacity)
+        self.h_memory = lkb(capacity=capacity, n_dim=n_dim)
+        self.current_embeddings = []
         self.last_n_transitions = collections.defaultdict(
             lambda: collections.deque([], maxlen=num_steps)
         )
+        self.n_neighbors = n_neighbors
 
     def append(
         self,
@@ -55,11 +61,13 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         if is_state_terminal:
             while last_n_transitions:
                 self.memory.append(list(last_n_transitions))
+                self.current_embeddings += [m['feature'] for m in last_n_transitions]
                 del last_n_transitions[0]
             assert len(last_n_transitions) == 0
         else:
             if len(last_n_transitions) == self.num_steps:
                 self.memory.append(list(last_n_transitions))
+                self.current_embeddings += [m['feature'] for m in last_n_transitions]
 
     def stop_current_episode(self, env_id=0):
         last_n_transitions = self.last_n_transitions[env_id]
@@ -67,11 +75,13 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         # if n-step hist is indeed full, transition has already been added;
         if 0 < len(last_n_transitions) < self.num_steps:
             self.memory.append(list(last_n_transitions))
+            self.current_embeddings += [m['feature'] for m in last_n_transitions]
         # avoid duplicate entry
         if 0 < len(last_n_transitions) <= self.num_steps:
             del last_n_transitions[0]
         while last_n_transitions:
             self.memory.append(list(last_n_transitions))
+            self.current_embeddings += [m['feature'] for m in last_n_transitions]
             del last_n_transitions[0]
         assert len(last_n_transitions) == 0
 
@@ -92,3 +102,27 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         if isinstance(self.memory, collections.deque):
             # Load v0.2
             self.memory = RandomAccessQueue(self.memory, maxlen=self.memory.maxlen)
+
+    def update_feature_arr(self):
+        if len(self.current_embeddings) > 0:
+            self.h_memory.append(torch.tensor(self.current_embeddings, dtype=torch.float32))
+            self.current_embeddings = []
+        assert len(self.h_memory) == len(self)
+
+    def lookup(self, target_h, max_len):
+        self.update_feature_arr()
+        start_indices = self.h_memory.search(target_h, self.n_neighbors)
+
+        trajectory_list = []
+        for start_index in start_indices:
+            trajectory = []
+            for sub_sequence in range(max_len):
+                step = self.memory[start_index + sub_sequence]
+                trajectory.append(step[0])
+                if step[0]["is_state_terminal"]:
+                    break
+                if (start_index + sub_sequence) == (len(self.memory) - 1):
+                    break
+            trajectory_list.append(trajectory)
+
+        return trajectory_list
