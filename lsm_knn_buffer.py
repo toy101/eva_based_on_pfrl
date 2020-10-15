@@ -19,7 +19,7 @@ class LSMKNNBuffer:
         assert add_arr.size()[1] == self.n_dim
 
         add_arr = add_arr.to(self.device)
-        self.memory = torch.cat((self.memory, add_arr), 0)
+        self.memory = torch.cat((self.memory, add_arr), dim=0)
         self._shave()
 
     def _shave(self):
@@ -29,7 +29,7 @@ class LSMKNNBuffer:
 
         self.memory = self.memory[-self.capacity:]
 
-    def search(self, target:torch.Tensor, n_index:int) -> list[int]:
+    def search(self, target:torch.Tensor, n_index:int):
 
         assert target.size() == torch.Size([1, self.n_dim])
 
