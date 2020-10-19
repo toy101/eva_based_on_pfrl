@@ -196,6 +196,9 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         n_times_update: int = 1,
         batch_accumulator: str = "mean",
         episodic_update_len: Optional[int] = None,
+        interval_tcp = 20,
+        n_neighbor = 5,
+        use_eva = True, # If False, This Agent become DQN.
         logger: Logger = getLogger(__name__),
         batch_states: Callable[
             [Sequence[Any], torch.device, Callable[[Any], Any]], Any
@@ -227,6 +230,9 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         self.logger = logger
         self.batch_states = batch_states
         self.recurrent = recurrent
+        self.interval_tcp = interval_tcp
+        self.n_neighbor = n_neighbor
+        self.use_eva = use_eva
         update_func: Callable[..., None]
         if self.recurrent:
             assert isinstance(self.replay_buffer, AbstractEpisodicReplayBuffer)
@@ -467,6 +473,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
 
     def _evaluate_model_and_update_recurrent_states(self, batch_obs: Sequence[Any]):
         batch_xs = self.batch_states(batch_obs, self.device, self.phi)
+        batch_h = None
         if self.recurrent:
             if self.training:
                 self.train_prev_recurrent_states = self.train_recurrent_states
@@ -536,6 +543,9 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                         )
                     )
                 self.replay_buffer.append(env_id=i, **transition)
+
+                self._backup_if_necessary(self.t, self.batch_h[i])
+
                 if batch_reset[i] or batch_done[i]:
                     self.batch_last_obs[i] = None
                     self.batch_last_action[i] = None
@@ -581,6 +591,15 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
             return self._batch_observe_eval(
                 batch_obs, batch_reward, batch_done, batch_reset
             )
+
+    def _backup_if_necessary(self, t, feature):
+        if (t % self.target_update_interval == 0 and
+                len(self.replay_buffer) >= self.replay_buffer.capacity and
+                self.use_eva):
+            trajectory_list = self.replay_buffer.lookup(feature, self.n_neighbor)
+
+    def _trajectory_centric_planning(self, trajectories):
+        pass
 
     def _can_start_replay(self) -> bool:
         if len(self.replay_buffer) < self.replay_start_size:
