@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+import gym
+
 import pfrl
 from pfrl.q_functions import DiscreteActionValueHead
 from pfrl import agents
