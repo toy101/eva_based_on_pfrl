@@ -20,6 +20,7 @@ from pfrl.wrappers import atari_wrappers
 from pfrl.initializers import init_chainer_default
 
 from network import QNetworkWithValuebuffer
+from eva import EVA
 
 class SingleSharedBias(nn.Module):
     """Single shared bias used in the Double DQN paper.
@@ -73,7 +74,7 @@ def main():
     parser.add_argument(
         "--env",
         type=str,
-        default="BreakoutNoFrameskip-v4",
+        default="PongNoFrameskip-v4",
         help="OpenAI Atari domain to perform algorithm on.",
     )
     parser.add_argument(
@@ -270,7 +271,7 @@ def main():
         # Feature extractor
         return np.asarray(x, dtype=np.float32) / 255
 
-    Agent = parse_agent(args.agent)
+    Agent = EVA
     agent = Agent(
         q_func,
         opt,

@@ -313,7 +313,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
     def sync_target_network(self) -> None:
         """Synchronize target network with current network."""
         synchronize_parameters(
-            src=self.model,
+            src=self.model.q_function,
             dst=self.target_model,
             method=self.target_update_method,
             tau=self.soft_update_tau,
@@ -399,7 +399,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                 self.target_model, batch_next_state, exp_batch["next_recurrent_state"],
             )
         else:
-            target_next_qout = self.target_model(batch_next_state)
+            target_next_qout, _ = self.target_model(batch_next_state)
         next_q_max = target_next_qout.max
 
         batch_rewards = exp_batch["reward"]
@@ -421,7 +421,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                 self.model, batch_state, exp_batch["recurrent_state"]
             )
         else:
-            qout = self.model(batch_state)
+            qout, _ = self.model(batch_state)
 
         batch_actions = exp_batch["action"]
         batch_q = torch.reshape(qout.evaluate_actions(batch_actions), (batch_size, 1))

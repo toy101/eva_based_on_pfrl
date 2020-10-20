@@ -42,8 +42,8 @@ class QNetworkWithValuebuffer(nn.Module):
 
         param_q, h = self.q_function(x)
 
-        non_param_q = self.v_buffer.get_non_param_q(h, self.n_neighbors)
-        if eva_flag:
+        if eva_flag and len(self.v_buffer) >= self.n_neighbors:
+            non_param_q = self.v_buffer.get_non_param_q(h, self.n_neighbors)
             return self.ration_lambda*param_q + (1-self.ration_lambda)*non_param_q, h
         else:
             return param_q, h
