@@ -17,7 +17,7 @@ from pfrl import replay_buffers
 from pfrl.wrappers import atari_wrappers
 from pfrl.initializers import init_chainer_default
 
-from network import EVANetwork
+from network import QNetworkWithValuebuffer
 
 class SingleSharedBias(nn.Module):
     """Single shared bias used in the Double DQN paper.
@@ -233,7 +233,7 @@ def main():
 
     n_actions = env.action_space.n
     # q_func = parse_arch(args.arch, n_actions)
-    q_func = EVANetwork(n_actions=n_actions)
+    q_func = QNetworkWithValuebuffer(n_actions=n_actions)
 
     if args.noisy_net_sigma is not None:
         pnn.to_factorized_noisy(q_func, sigma_scale=args.noisy_net_sigma)

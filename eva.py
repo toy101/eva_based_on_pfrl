@@ -35,6 +35,7 @@ from pfrl.utils.recurrent import one_step_forward
 from pfrl.utils.recurrent import pack_and_forward
 from pfrl.utils.recurrent import recurrent_state_as_numpy
 
+from network import QNetworkWithValuebuffer
 from eva_replay_buffer import EVAReplayBuffer
 
 def _mean_or_nan(xs: Sequence[float]) -> float:
@@ -179,7 +180,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
 
     def __init__(
         self,
-        q_function: torch.nn.Module,
+        q_function: QNetworkWithValuebuffer, # torch.nn.Module,
         optimizer: torch.optim.Optimizer,  # type: ignore  # somehow mypy complains
         replay_buffer: EVAReplayBuffer,
         gamma: float,
@@ -197,7 +198,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         batch_accumulator: str = "mean",
         episodic_update_len: Optional[int] = None,
         interval_tcp = 20,
-        n_neighbor = 5,
+        n_trj_step = 50,
         use_eva = True, # If False, This Agent become DQN.
         logger: Logger = getLogger(__name__),
         batch_states: Callable[
@@ -229,9 +230,12 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         assert batch_accumulator in ("mean", "sum")
         self.logger = logger
         self.batch_states = batch_states
-        self.recurrent = recurrent
+        # self.recurrent = recurrent
+        self.recurrent = False
+        self.n_actions = self.model.n_actions
+        self.value_buffer = self.model.v_buffer
         self.interval_tcp = interval_tcp
-        self.n_neighbor = n_neighbor
+        self.n_trj_step = n_trj_step
         self.use_eva = use_eva
         update_func: Callable[..., None]
         if self.recurrent:
@@ -262,9 +266,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         self.t = 0
         self.optim_t = 0  # Compensate pytorch optim not having `t`
         self._cumulative_steps = 0
-        self.target_model = make_target_model_as_copy(self.model)
-
-        self.batch_h = None
+        self.target_model = make_target_model_as_copy(self.model.q_function)
 
         # Statistics
         self.q_record: collections.deque = collections.deque(maxlen=1000)
@@ -485,7 +487,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                     self.model, batch_xs, self.test_recurrent_states
                 )
         else:
-            batch_av, batch_h = self.model(batch_xs)
+            batch_av, batch_h = self.model(batch_xs, self.use_eva)
         return batch_av, batch_h
 
     def batch_act(self, batch_obs: Sequence[Any]) -> Sequence[Any]:
@@ -596,10 +598,48 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         if (t % self.target_update_interval == 0 and
                 len(self.replay_buffer) >= self.replay_buffer.capacity and
                 self.use_eva):
-            trajectory_list = self.replay_buffer.lookup(feature, self.n_neighbor)
+            trajectory_list = self.replay_buffer.lookup(feature, self.n_trj_step)
+            batch_trj = [
+                            batch_trajectory(trajectory, self.device, self.phi, batch_states=batch_states)
+                            for trajectory in trajectory_list
+                        ]
+            q_np_arr = self._trajectory_centric_planning(batch_trj)
+            batch_feature = [elem['feature'] for elem in batch_trj]
+            batch_feature = torch.Tensor(batch_feature)
+            self.value_buffer.store(batch_feature, q_np_arr)
 
     def _trajectory_centric_planning(self, trajectories):
-        pass
+        state_shape = trajectories[0][0]["state"].shape
+        # Aligning Shapes for Parallel Processing with GPUs
+                        # If Atari, it will be (0, 4, 84, 84)
+        batch_states = torch.empty(0+state_shape, dtype=torch.float32)
+        for trajectory in trajectories:
+            bs = torch.empty(self.n_trj_step+state_shape, dtype=torch.float32)
+            bs[:len(trajectory["state"])] = trajectory["state"]
+                            # numpy.vstack
+            batch_states = torch.cat((batch_states, bs), dim=0)
+
+        batch_states.to(self.device)
+        with torch.no_grad(), evaluating(self.model):
+            batch_q, _ = self.model(batch_states)
+            q_theta_arr = batch_q.to_cpu()
+            q_theta_arr = q_theta_arr.reshape((len(trajectories),
+                                               self.n_trj_step, self.n_actions))
+
+        q_np_arr = np.empty((0, self.n_actions), dtype=np.float32)
+        for q_np, trajectory in zip(q_theta_arr, trajectories):
+            # batch_state = trajectory['state']
+            batch_action = trajectory['action']
+            batch_reward = trajectory['reward']
+
+            q_np = q_np[:len(batch_action)]
+            for t in range(len(batch_action) - 2, -1, -1):  # t:= T-2, 0
+                V_np = torch.max(q_np[t + 1])  # V_NP(s_t+1) := max_a Q(s_t+1, a)
+                q_np[t, batch_action[t]] = batch_reward[t] + self.gamma * V_np
+
+            q_np_arr = torch.cat((q_np_arr, q_np.reshape(-1, self.n_actions)), dim=1)
+
+        return q_np_arr
 
     def _can_start_replay(self) -> bool:
         if len(self.replay_buffer) < self.replay_start_size:
@@ -794,3 +834,17 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
             ("n_updates", self.optim_t),
             ("rlen", len(self.replay_buffer)),
         ]
+
+
+def batch_trajectory(trajectory, device, phi, batch_states=batch_states):
+    batch_tr = {
+        'state': batch_states(
+            [elem[0]['state'] for elem in trajectory], device, phi),
+        'action': np.asarray([elem[0]['action'] for elem in trajectory], dtype=np.int32),
+        'reward': np.asarray([elem[0]['reward'] for elem in trajectory], dtype=np.float32),
+        'is_state_terminal': np.asarray(
+            [elem[0]['is_state_terminal'] for elem in trajectory], dtype=np.float32),
+        'feature': [elem[0]['feature'] for elem in trajectory]
+    }
+
+    return batch_tr
