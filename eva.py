@@ -604,12 +604,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                             for trajectory in trajectory_list
                         ]
             q_np_arr = self._trajectory_centric_planning(batch_trj)
-            # batch_feature = []
-            # for elem in batch_trj:
-            #     batch_feature.append(elem['feature'].reshape(-1, 1))
-            batch_feature = [
-                                elem for trj in batch_trj for elem in trj['feature']
-                            ]
+            batch_feature = [elem for trj in batch_trj for elem in trj['feature']]
             batch_feature = torch.tensor(np.asarray(batch_feature), dtype=torch.float32)
             self.value_buffer.store(batch_feature, q_np_arr)
 
