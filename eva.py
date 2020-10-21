@@ -528,10 +528,10 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                     "state": self.batch_last_obs[i],
                     "action": self.batch_last_action[i],
                     "reward": batch_reward[i],
+                    "feature": self.batch_h[i],
                     "next_state": batch_obs[i],
                     "next_action": None,
                     "is_state_terminal": batch_done[i],
-                    "features": self.batch_h[i],
                 }
                 if self.recurrent:
                     transition["recurrent_state"] = recurrent_state_as_numpy(
@@ -604,17 +604,22 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                             for trajectory in trajectory_list
                         ]
             q_np_arr = self._trajectory_centric_planning(batch_trj)
-            batch_feature = [elem['feature'] for elem in batch_trj]
-            batch_feature = torch.Tensor(batch_feature)
+            # batch_feature = []
+            # for elem in batch_trj:
+            #     batch_feature.append(elem['feature'].reshape(-1, 1))
+            batch_feature = [
+                                elem for trj in batch_trj for elem in trj['feature']
+                            ]
+            batch_feature = torch.tensor(np.asarray(batch_feature), dtype=torch.float32)
             self.value_buffer.store(batch_feature, q_np_arr)
 
     def _trajectory_centric_planning(self, trajectories):
-        state_shape = trajectories[0][0]["state"].shape
+        state_shape = tuple(trajectories[0]["state"].shape)[1:] # torch.Size -> tuple
         # Aligning Shapes for Parallel Processing with GPUs
                         # If Atari, it will be (0, 4, 84, 84)
-        batch_states = torch.empty(0+state_shape, dtype=torch.float32)
+        batch_states = torch.empty((0,)+state_shape, dtype=torch.float32)
         for trajectory in trajectories:
-            bs = torch.empty(self.n_trj_step+state_shape, dtype=torch.float32)
+            bs = torch.empty((self.n_trj_step,)+state_shape, dtype=torch.float32)
             bs[:len(trajectory["state"])] = trajectory["state"]
                             # numpy.vstack
             batch_states = torch.cat((batch_states, bs), dim=0)
@@ -622,11 +627,11 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         batch_states.to(self.device)
         with torch.no_grad(), evaluating(self.model):
             batch_q, _ = self.model(batch_states)
-            q_theta_arr = batch_q.to_cpu()
+            q_theta_arr = batch_q.q_values.cpu()
             q_theta_arr = q_theta_arr.reshape((len(trajectories),
                                                self.n_trj_step, self.n_actions))
 
-        q_np_arr = np.empty((0, self.n_actions), dtype=np.float32)
+        q_np_arr = torch.empty((0, self.n_actions), dtype=torch.float32)
         for q_np, trajectory in zip(q_theta_arr, trajectories):
             # batch_state = trajectory['state']
             batch_action = trajectory['action']
@@ -637,7 +642,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                 V_np = torch.max(q_np[t + 1])  # V_NP(s_t+1) := max_a Q(s_t+1, a)
                 q_np[t, batch_action[t]] = batch_reward[t] + self.gamma * V_np
 
-            q_np_arr = torch.cat((q_np_arr, q_np.reshape(-1, self.n_actions)), dim=1)
+            q_np_arr = torch.cat((q_np_arr, q_np.reshape(-1, self.n_actions)), dim=0)
 
         return q_np_arr
 
@@ -839,12 +844,12 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
 def batch_trajectory(trajectory, device, phi, batch_states=batch_states):
     batch_tr = {
         'state': batch_states(
-            [elem[0]['state'] for elem in trajectory], device, phi),
-        'action': np.asarray([elem[0]['action'] for elem in trajectory], dtype=np.int32),
-        'reward': np.asarray([elem[0]['reward'] for elem in trajectory], dtype=np.float32),
+            [elem['state'] for elem in trajectory], device, phi),
+        'action': np.asarray([elem['action'] for elem in trajectory], dtype=np.int32),
+        'reward': np.asarray([elem['reward'] for elem in trajectory], dtype=np.float32),
         'is_state_terminal': np.asarray(
-            [elem[0]['is_state_terminal'] for elem in trajectory], dtype=np.float32),
-        'feature': [elem[0]['feature'] for elem in trajectory]
+            [elem['is_state_terminal'] for elem in trajectory], dtype=np.float32),
+        'feature': [elem['feature'].detach().clone().numpy() for elem in trajectory]
     }
 
     return batch_tr

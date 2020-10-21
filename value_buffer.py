@@ -24,7 +24,7 @@ class ValueBuffer:
         indices = self.h_memory.search(current_h, n_index)
         non_q_values = self.q_memory[indices]
 
-        return torch.mean(non_q_values, dim=0)
+        return torch.mean(non_q_values, dim=0).reshape(1, -1)
 
     def __len__(self):
         return self.q_memory.size()[0]

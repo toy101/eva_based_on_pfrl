@@ -22,13 +22,13 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
             (for N-step updates)
     """
 
-    def __init__(self, capacity, n_dim, n_neighbors, num_steps=1):
+    def __init__(self, capacity, n_dim=256, n_neighbors=5, num_steps=1):
         self.capacity = capacity
         assert num_steps > 0
         self.num_steps = num_steps
         self.memory = RandomAccessQueue(maxlen=capacity)
         self.h_memory = lkb(capacity=capacity, n_dim=n_dim)
-        self.current_embeddings = []
+        self.current_embeddings = torch.empty(0, n_dim, dtype=torch.float32)
         self.last_n_transitions = collections.defaultdict(
             lambda: collections.deque([], maxlen=num_steps)
         )
@@ -39,7 +39,7 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         state,
         action,
         reward,
-        feature,
+        feature : torch.tensor,
         next_state=None,
         next_action=None,
         is_state_terminal=False,
@@ -61,13 +61,17 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         if is_state_terminal:
             while last_n_transitions:
                 self.memory.append(list(last_n_transitions))
-                self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                # self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                for m in last_n_transitions:
+                    self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
                 del last_n_transitions[0]
             assert len(last_n_transitions) == 0
         else:
             if len(last_n_transitions) == self.num_steps:
                 self.memory.append(list(last_n_transitions))
-                self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                # self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                for m in last_n_transitions:
+                    self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
 
     def stop_current_episode(self, env_id=0):
         last_n_transitions = self.last_n_transitions[env_id]
@@ -75,13 +79,17 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         # if n-step hist is indeed full, transition has already been added;
         if 0 < len(last_n_transitions) < self.num_steps:
             self.memory.append(list(last_n_transitions))
-            self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            # self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            for m in last_n_transitions:
+                self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
         # avoid duplicate entry
         if 0 < len(last_n_transitions) <= self.num_steps:
             del last_n_transitions[0]
         while last_n_transitions:
             self.memory.append(list(last_n_transitions))
-            self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            # self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            for m in last_n_transitions:
+                self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
             del last_n_transitions[0]
         assert len(last_n_transitions) == 0
 
@@ -104,14 +112,16 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
             self.memory = RandomAccessQueue(self.memory, maxlen=self.memory.maxlen)
 
     def update_feature_arr(self):
-        if len(self.current_embeddings) > 0:
-            self.h_memory.append(torch.tensor(self.current_embeddings, dtype=torch.float32))
-            self.current_embeddings = []
+        shape = self.current_embeddings.size()
+        if shape[0] > 0:
+            n_dim = shape[1]
+            self.h_memory.append(self.current_embeddings)
+            self.current_embeddings = torch.empty(0, n_dim, dtype=torch.float32)
         assert len(self.h_memory) == len(self)
 
     def lookup(self, target_h, max_len):
         self.update_feature_arr()
-        start_indices = self.h_memory.search(target_h, self.n_neighbors)
+        start_indices = self.h_memory.search(target_h.reshape(1,-1), self.n_neighbors)
 
         trajectory_list = []
         for start_index in start_indices:

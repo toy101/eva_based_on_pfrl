@@ -21,6 +21,7 @@ from pfrl.initializers import init_chainer_default
 
 from network import QNetworkWithValuebuffer
 from eva import EVA
+from eva_replay_buffer import EVAReplayBuffer
 
 class SingleSharedBias(nn.Module):
     """Single shared bias used in the Double DQN paper.
@@ -135,6 +136,12 @@ def main():
         type=int,
         default=5 * 10 ** 4,
         help="Minimum replay buffer size before " + "performing gradient updates.",
+    )
+    parser.add_argument(
+        "--replay-capacity-size",
+        type=int,
+        default=10 ** 6,
+        help="Replay buffer size before.",
     )
     parser.add_argument(
         "--target-update-interval",
@@ -265,7 +272,7 @@ def main():
             num_steps=args.num_step_return,
         )
     else:
-        rbuf = replay_buffers.ReplayBuffer(10 ** 6, args.num_step_return)
+        rbuf = EVAReplayBuffer(args.replay_capacity_size, num_steps=args.num_step_return)
 
     def phi(x):
         # Feature extractor

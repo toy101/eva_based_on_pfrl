@@ -34,7 +34,7 @@ class LSMKNNBuffer:
         assert target.size() == torch.Size([1, self.n_dim])
 
         target = target.to(self.device)
-        index_arr = torch.argsort(torch.sum((self.memory-target)**2), dim=1)[:n_index]
+        index_arr = torch.argsort(torch.sum((self.memory-target)**2, dim=1))[:n_index]
 
         return index_arr.tolist()
 
