@@ -619,7 +619,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
                             # numpy.vstack
             batch_states = torch.cat((batch_states, bs), dim=0)
 
-        batch_states.to(self.device)
+        batch_states = batch_states.to(self.device)
         with torch.no_grad(), evaluating(self.model):
             batch_q, _ = self.model(batch_states)
             q_theta_arr = batch_q.q_values.cpu()
@@ -639,7 +639,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
 
             q_np_arr = torch.cat((q_np_arr, q_np.reshape(-1, self.n_actions)), dim=0)
 
-        return q_np_arr
+        return q_np_arr.to(self.device)
 
     def _can_start_replay(self) -> bool:
         if len(self.replay_buffer) < self.replay_start_size:
@@ -844,7 +844,7 @@ def batch_trajectory(trajectory, device, phi, batch_states=batch_states):
         'reward': np.asarray([elem['reward'] for elem in trajectory], dtype=np.float32),
         'is_state_terminal': np.asarray(
             [elem['is_state_terminal'] for elem in trajectory], dtype=np.float32),
-        'feature': [elem['feature'].detach().clone().numpy() for elem in trajectory]
+        'feature': [elem['feature'].cpu().detach().clone().numpy() for elem in trajectory]
     }
 
     return batch_tr

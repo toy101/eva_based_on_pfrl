@@ -28,7 +28,8 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         self.num_steps = num_steps
         self.memory = RandomAccessQueue(maxlen=capacity)
         self.h_memory = lkb(capacity=capacity, n_dim=n_dim)
-        self.current_embeddings = torch.empty(0, n_dim, dtype=torch.float32)
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
         self.last_n_transitions = collections.defaultdict(
             lambda: collections.deque([], maxlen=num_steps)
         )
@@ -116,7 +117,7 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         if shape[0] > 0:
             n_dim = shape[1]
             self.h_memory.append(self.current_embeddings)
-            self.current_embeddings = torch.empty(0, n_dim, dtype=torch.float32)
+            self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
         assert len(self.h_memory) == len(self)
 
     def lookup(self, target_h, max_len):
