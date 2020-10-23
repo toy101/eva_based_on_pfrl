@@ -166,7 +166,7 @@ def main():
     parser.add_argument("--num-step-return", type=int, default=1)
     parser.set_defaults(clip_delta=True)
     parser.add_argument(
-        "--agent", type=str, default="DoubleDQN", choices=["DQN", "DoubleDQN", "PAL"]
+        "--agent", type=str, default="EVA", choices=["DQN", "EVA"]
     )
     parser.add_argument(
         "--log-level",
@@ -292,6 +292,7 @@ def main():
         update_interval=args.update_interval,
         batch_accumulator="sum",
         phi=phi,
+        use_eva=args.agent=="EVA"
     )
 
     if args.load:
