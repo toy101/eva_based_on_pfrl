@@ -23,6 +23,8 @@ from network import QNetworkWithValuebuffer
 from eva import EVA
 from eva_replay_buffer import EVAReplayBuffer
 
+from make_output_dir import make_output_dir
+
 class SingleSharedBias(nn.Module):
     """Single shared bias used in the Double DQN paper.
 
@@ -214,8 +216,8 @@ def main():
     train_seed = args.seed
     test_seed = 2 ** 31 - 1 - args.seed
 
-    args.outdir = experiments.prepare_output_dir(
-        args, args.outdir, time_format='{}/%Y%m%dT%H%M%S'.format(args.env))
+    args.outdir = make_output_dir(
+        args, args.outdir, time_format='{}/{}_%Y%m%dT%H%M%S'.format(args.env, args.agent))
     print("Output files are saved in {}".format(args.outdir))
 
     def make_env(test):
