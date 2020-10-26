@@ -17,6 +17,7 @@ from pfrl import replay_buffers
 from pfrl.wrappers import atari_wrappers
 from pfrl.initializers import init_chainer_default
 
+from debug_dqn import MyDQN
 
 class SingleSharedBias(nn.Module):
     """Single shared bias used in the Double DQN paper.
@@ -62,7 +63,7 @@ def parse_arch(arch, n_actions):
 
 
 def parse_agent(agent):
-    return {"DQN": agents.DQN, "DoubleDQN": agents.DoubleDQN, "PAL": agents.PAL}[agent]
+    return {"DQN": agents.DQN, "DoubleDQN": agents.DoubleDQN, "PAL": agents.PAL, "DEBUG": MyDQN}[agent]
 
 
 def main():
