@@ -697,6 +697,6 @@ class MyDQN(agent.AttributeSavingMixin, agent.BatchAgent):
             # ("cumulative_steps", self.cumulative_steps),
             # ("n_updates", self.optim_t),
             # ("rlen", len(self.replay_buffer)),
-            ("size of network", self.model.__size__),
-            ("size of rbuf", self.replay_buffer.__size__)
+            ("size of network", self.model.__sizeof__()),
+            ("size of rbuf", self.replay_buffer.__sizeof__())
         ]
