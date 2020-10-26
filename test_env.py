@@ -70,7 +70,7 @@ def main():
     parser.add_argument(
         "--env",
         type=str,
-        default="BreakoutNoFrameskip-v4",
+        default="PongNoFrameskip-v4",
         help="OpenAI Atari domain to perform algorithm on.",
     )
     parser.add_argument(
@@ -110,7 +110,7 @@ def main():
     parser.add_argument(
         "--arch",
         type=str,
-        default="doubledqn",
+        default="nature",
         choices=["nature", "nips", "dueling", "doubledqn"],
         help="Network architecture to use.",
     )
