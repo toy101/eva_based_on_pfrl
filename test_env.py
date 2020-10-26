@@ -155,7 +155,7 @@ def main():
     parser.add_argument("--num-step-return", type=int, default=1)
     parser.set_defaults(clip_delta=True)
     parser.add_argument(
-        "--agent", type=str, default="DoubleDQN", choices=["DQN", "DoubleDQN", "PAL"]
+        "--agent", type=str, default="DQN", choices=["DQN", "DoubleDQN", "PAL"]
     )
     parser.add_argument(
         "--log-level",
