@@ -595,7 +595,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
             )
 
     def _backup_if_necessary(self, t, feature):
-        if (t % self.target_update_interval == 0 and
+        if (t % self.interval_tcp == 0 and
                 len(self.replay_buffer) >= self.replay_buffer.capacity and
                 self.use_eva):
             trajectory_list = self.replay_buffer.lookup(feature, self.n_trj_step)
