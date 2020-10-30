@@ -1,6 +1,7 @@
 import collections
 import pickle
 
+import numpy as np
 import torch
 from pfrl.collections.random_access_queue import RandomAccessQueue
 from pfrl import replay_buffer
@@ -29,7 +30,8 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         self.memory = RandomAccessQueue(maxlen=capacity)
         self.h_memory = lkb(capacity=capacity, n_dim=n_dim)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
+        # self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
+        self.current_embeddings = []
         self.last_n_transitions = collections.defaultdict(
             lambda: collections.deque([], maxlen=num_steps)
         )
@@ -62,17 +64,17 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         if is_state_terminal:
             while last_n_transitions:
                 self.memory.append(list(last_n_transitions))
-                # self.current_embeddings += [m['feature'] for m in last_n_transitions]
-                for m in last_n_transitions:
-                    self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
+                self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                # for m in last_n_transitions:
+                #     self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
                 del last_n_transitions[0]
             assert len(last_n_transitions) == 0
         else:
             if len(last_n_transitions) == self.num_steps:
                 self.memory.append(list(last_n_transitions))
-                # self.current_embeddings += [m['feature'] for m in last_n_transitions]
-                for m in last_n_transitions:
-                    self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
+                self.current_embeddings += [m['feature'] for m in last_n_transitions]
+                # for m in last_n_transitions:
+                #     self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
 
     def stop_current_episode(self, env_id=0):
         last_n_transitions = self.last_n_transitions[env_id]
@@ -80,17 +82,17 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         # if n-step hist is indeed full, transition has already been added;
         if 0 < len(last_n_transitions) < self.num_steps:
             self.memory.append(list(last_n_transitions))
-            # self.current_embeddings += [m['feature'] for m in last_n_transitions]
-            for m in last_n_transitions:
-                self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
+            self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            # for m in last_n_transitions:
+            #     self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
         # avoid duplicate entry
         if 0 < len(last_n_transitions) <= self.num_steps:
             del last_n_transitions[0]
         while last_n_transitions:
             self.memory.append(list(last_n_transitions))
-            # self.current_embeddings += [m['feature'] for m in last_n_transitions]
-            for m in last_n_transitions:
-                self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
+            self.current_embeddings += [m['feature'] for m in last_n_transitions]
+            # for m in last_n_transitions:
+            #     self.current_embeddings = torch.cat((self.current_embeddings, m['feature'].reshape(1,-1)), dim=0)
             del last_n_transitions[0]
         assert len(last_n_transitions) == 0
 
@@ -113,11 +115,18 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
             self.memory = RandomAccessQueue(self.memory, maxlen=self.memory.maxlen)
 
     def update_feature_arr(self):
-        shape = self.current_embeddings.size()
-        if shape[0] > 0:
-            n_dim = shape[1]
-            self.h_memory.append(self.current_embeddings)
-            self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
+        # shape = self.current_embeddings.size()
+        # if shape[0] > 0:
+        #     n_dim = shape[1]
+        #     self.h_memory.append(self.current_embeddings)
+        #     self.current_embeddings = torch.empty(0, n_dim, device=self.device, dtype=torch.float32)
+        if len(self.current_embeddings) > 0:
+            # list -> numpy
+            added = np.asarray(self.current_embeddings, dtype=np.float32)
+            # numpy -> Tensor
+            added = torch.from_numpy(added, device=self.device)
+            self.h_memory.append(added)
+            self.current_embeddings = []
         assert len(self.h_memory) == len(self)
 
     def lookup(self, target_h, max_len):

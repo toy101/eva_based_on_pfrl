@@ -22,8 +22,9 @@ class QNetwork(nn.Module):
         h = self.cnn(x)
         q = self.output(h)
         param_q = DiscreteActionValue(q)
+        h_numpy = h.to("cpu").detach().numpy().copy()
 
-        return param_q, h
+        return param_q, h_numpy
 
 class QNetworkWithValuebuffer(nn.Module):
 

@@ -844,7 +844,9 @@ def batch_trajectory(trajectory, device, phi, batch_states=batch_states):
         'reward': np.asarray([elem['reward'] for elem in trajectory], dtype=np.float32),
         'is_state_terminal': np.asarray(
             [elem['is_state_terminal'] for elem in trajectory], dtype=np.float32),
-        'feature': [elem['feature'].cpu().detach().clone().numpy() for elem in trajectory]
+        # 'feature': [elem['feature'].cpu().detach().clone().numpy() for elem in trajectory]
+        'feature' : np.asarray(
+            [elem['feature'] for elem in trajectory], dtype=np.float32),
     }
 
     return batch_tr
