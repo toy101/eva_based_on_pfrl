@@ -190,7 +190,7 @@ def main():
             "Monitor env. Videos and additional information are saved as output files."
         ),
     )
-    parser.add_argument("--lr", type=float, default=2.5e-4, help="Learning rate.")
+    parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate.")
     parser.add_argument(
         "--prioritized",
         action="store_true",
