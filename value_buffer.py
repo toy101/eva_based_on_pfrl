@@ -21,6 +21,7 @@ class ValueBuffer:
         assert len(self.h_memory) == self.q_memory.size()[0]
 
     def get_non_param_q(self, current_h, n_index):
+        current_h = torch.from_numpy(current_h).clone()
         indices = self.h_memory.search(current_h, n_index)
         non_q_values = self.q_memory[indices]
 

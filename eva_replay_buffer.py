@@ -124,13 +124,14 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
             # list -> numpy
             added = np.asarray(self.current_embeddings, dtype=np.float32)
             # numpy -> Tensor
-            added = torch.from_numpy(added, device=self.device)
+            added = torch.from_numpy(added)
             self.h_memory.append(added)
             self.current_embeddings = []
         assert len(self.h_memory) == len(self)
 
     def lookup(self, target_h, max_len):
         self.update_feature_arr()
+        target_h = torch.from_numpy(target_h).clone()
         start_indices = self.h_memory.search(target_h.reshape(1,-1), self.n_neighbors)
 
         trajectory_list = []
