@@ -1,6 +1,6 @@
 import collections
 import pickle
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -23,6 +23,9 @@ class EVAReplayBuffer(replay_buffer.AbstractReplayBuffer):
         num_steps (int): Number of timesteps per stored transition
             (for N-step updates)
     """
+
+    # Implements AbstractReplayBuffer.capacity
+    capacity: Optional[int] = None
 
     def __init__(self, capacity, n_dim=256, n_neighbors=5, num_steps=1):
         self.capacity = capacity
