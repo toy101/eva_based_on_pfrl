@@ -43,7 +43,7 @@ class QNetworkWithValuebuffer(nn.Module):
 
         param_q, h = self.q_function(x)
 
-        if eva_flag and len(self.v_buffer) >= self.v_buffer.capacity:
+        if eva_flag and len(self.v_buffer) >= self.n_neighbors:
             non_param_q = self.v_buffer.get_non_param_q(h, self.n_neighbors)
             return DiscreteActionValue(self.ration_lambda*param_q.q_values + (1-self.ration_lambda)*non_param_q), h
         else:
