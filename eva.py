@@ -264,6 +264,7 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         ), "target_update_interval should be a multiple of update_interval"
 
         self.t = 0
+        self.eval_t = 0
         self.optim_t = 0  # Compensate pytorch optim not having `t`
         self._cumulative_steps = 0
         self.target_model = make_target_model_as_copy(self.model.q_function)
@@ -570,6 +571,14 @@ class EVA(agent.AttributeSavingMixin, agent.BatchAgent):
         batch_done: Sequence[bool],
         batch_reset: Sequence[bool],
     ) -> None:
+
+        for i in range(len(batch_obs)):
+            self._backup_if_necessary(self.eval_t, self.batch_h[i])
+            if batch_reset[i] or batch_done[i]:
+                self.eval_t = 0
+            else:
+                self.eval_t += 1
+
         if self.recurrent:
             # Reset recurrent states when episodes end
             self.test_recurrent_states = _batch_reset_recurrent_states_when_episodes_end(  # NOQA
