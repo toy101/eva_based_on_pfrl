@@ -29,4 +29,4 @@ I implemented an algorithm called Ephemeral Value Adjustments (EVA) using [pfrl]
 - [ ] More experiments.
 
 ## Performance Comparison
-<img src="./figure/exp_results/Pong.png" width=50%> <img src="./figure/exp_results/Tennis.png" width=50%>
+<img src="./figure/exp_results/Pong.png" width=30%> <img src="./figure/exp_results/Tennis.png" width=30%>
