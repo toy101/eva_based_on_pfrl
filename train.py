@@ -42,36 +42,6 @@ class SingleSharedBias(nn.Module):
         return x + self.bias.expand_as(x)
 
 
-def parse_arch(arch, n_actions):
-    if arch == "nature":
-        return nn.Sequential(
-            pnn.LargeAtariCNN(),
-            init_chainer_default(nn.Linear(512, n_actions)),
-            DiscreteActionValueHead(),
-        )
-    elif arch == "doubledqn":
-        return nn.Sequential(
-            pnn.LargeAtariCNN(),
-            init_chainer_default(nn.Linear(512, n_actions, bias=False)),
-            SingleSharedBias(),
-            DiscreteActionValueHead(),
-        )
-    elif arch == "nips":
-        return nn.Sequential(
-            pnn.SmallAtariCNN(),
-            init_chainer_default(nn.Linear(256, n_actions)),
-            DiscreteActionValueHead(),
-        )
-    elif arch == "dueling":
-        return DuelingDQN(n_actions)
-    else:
-        raise RuntimeError("Not supported architecture: {}".format(arch))
-
-
-def parse_agent(agent):
-    return {"DQN": agents.DQN, "DoubleDQN": agents.DoubleDQN, "PAL": agents.PAL}[agent]
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -114,13 +84,6 @@ def main():
         help="Exploration epsilon used during eval episodes.",
     )
     parser.add_argument("--noisy-net-sigma", type=float, default=None)
-    parser.add_argument(
-        "--arch",
-        type=str,
-        default="doubledqn",
-        choices=["nature", "nips", "dueling", "doubledqn"],
-        help="Network architecture to use.",
-    )
     parser.add_argument(
         "--steps",
         type=int,
@@ -244,7 +207,6 @@ def main():
     eval_env = make_env(test=True)
 
     n_actions = env.action_space.n
-    # q_func = parse_arch(args.arch, n_actions)
     q_func = QNetworkWithValuebuffer(n_actions=n_actions)
 
     if args.noisy_net_sigma is not None:
