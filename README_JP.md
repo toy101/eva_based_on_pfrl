@@ -1,7 +1,7 @@
 # Ephemeral Value Adjustments based on pfrl
 
 ![figure](./figure/eva.png)
-- from https://arxiv.org/abs/1810.08163
+- https://arxiv.org/abs/1810.08163 より引用
 
 EVAと呼ばれるアルゴリズムを[pfrl](https://github.com/pfnet/pfrl)を用いて実装しました.
 
