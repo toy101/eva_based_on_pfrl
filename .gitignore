@@ -2,5 +2,5 @@
 .vscode/
 __pycache__
 results/
-# plot.ipynb
+plot.ipynb
 baseline/
