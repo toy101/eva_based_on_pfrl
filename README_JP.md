@@ -19,14 +19,7 @@ I implemented an algorithm called Ephemeral Value Adjustments (EVA) using [pfrl]
 ## Usage
     python train.py [options]
 ### Options
-- `--env` : Environment name of the Atari.
-    - Eg : `--env PongNoFrameskip-v4`
-- `--gpu` : If 0, use the GPU. If the number is less than 0, the GPU is not used.
-- `--agent` : Choose DQN and EVA.
-
-## TODO
-- [ ] Reduce GPU memory usage
-- [ ] More experiments.
-
-## Performance Comparison
-<img src="./figure/exp_results/Pong.png"> <img src="./figure/exp_results/Tennis.png">
+- `--env` : Atari環境の環境名.
+    - 例 : `--env PongNoFrameskip-v4`
+- `--gpu` : ０だったらGPUを使います。もし0未満の数値を指定すればGPUは使いません。
+- `--agent` : DQNとEVAを選べます
