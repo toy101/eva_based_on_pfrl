@@ -29,4 +29,5 @@ EVAと呼ばれるアルゴリズムを[pfrl](https://github.com/pfnet/pfrl)を�
 - [ ] 実験結果を増やす。
 
 ## 性能比較
-<img src="./figure/exp_results/Pong.png" width=30%> <img src="./figure/exp_results/Tennis.png" width=30%>
+<img src="./figure/exp_results/Pong.png" width=45%> <img src="./figure/exp_results/Tennis.png" width=45%>
+<img src="./figure/exp_results/Hero.png" width=45%>
